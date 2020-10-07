@@ -1,5 +1,11 @@
 package threeChess;
 
+import java.util.ArrayList;
+
+// import jdk.internal.org.objectweb.asm.tree.analysis.Value;
+// import jdk.nashorn.internal.IntDeque;
+// import sun.jvm.hotspot.debugger.posix.elf.ELFFile;
+
 /**
  * An interface for AI bots to implement.
  * They are simply given a Board object indicating the positions of all pieces, 
@@ -14,6 +20,20 @@ public abstract class Agent implements Runnable{
 
   private Board brd;
   private Position[] mv;
+
+  public class movepair{
+    Position start, end;
+    movepair(Position start, Position end){
+      this.start = start;
+      this.end = end;
+    }
+    public Position getStart(){
+      return this.start;
+    }
+    public Position getEnd(){
+      return this.end;
+    }
+  }
   
   /**
    * 0 argument constructor. 
@@ -27,6 +47,82 @@ public abstract class Agent implements Runnable{
       return true;
   }
 
+  public int eval(Board board){
+    return -1;
+  }
+
+  /** Get legal moves**/
+  public ArrayList<movepair> getlegalmoves(Board boardstart, Position[] piece){
+    Board board = boardstart.clone();
+    ArrayList<movepair> li = new ArrayList<movepair>();
+    for(Position current : piece){
+      Piece mover = board.getPiece(current);
+      PieceType type = mover.getType();
+      Direction[][] steps = type.getSteps();
+      if(type == PieceType.PAWN || type == PieceType.KING || type == PieceType.KNIGHT){
+        for(int i = 0;i < steps.length;i++){
+          Position end = board.step(mover, steps[i], current);
+          if(!board.isLegalMove(current, end)) continue;
+          else li.add(new movepair(current, end));
+        }
+      }
+
+      else if(type == PieceType.BISHOP || type == PieceType.QUEEN || type == PieceType.ROOK){
+        int reps = 1 + type.getStepReps();
+        for(int i = 0;i < steps.length;i++){
+          for(int j = 0;j < reps;j++){
+            Position end = board.step(mover, steps[i], current);
+            if(!board.isLegalMove(current, end)) continue;
+            else li.add(new movepair(current, end));
+          }
+        }
+      }
+    }
+    return li;
+  }
+
+
+  public int BestMove(Board board, Boolean mm, int alpha, int beta, int depth){
+    ArrayList<movepair> moves;
+    Colour turn = board.getTurn();
+    if(mm) {
+      Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
+      moves = getlegalmoves(board, pieces);
+    }
+    else{
+      turn = Colour.values()[(turn.ordinal()+1)%3];
+    }
+    if(depth > 3 || board.gameOver()){
+      eval(board);
+    }
+
+    // Colour turn = board.getTurn();
+    if(mm){
+      int value = Integer.MIN_VALUE;
+      for(movepair i : moves){
+        Board boardcopy = board.clone();
+        boardcopy.move(i.getStart(), i.getEnd());
+        value = Math.max(value, BestMove(boardcopy, !mm, alpha, beta, depth+1));
+        if(value>beta)
+          return value;
+        alpha=Math.max(alpha,value);
+        }
+        return value;
+    }
+    else {
+      int value = Integer.MAX_VALUE;
+      for(movepair i : moves){
+        Board boardcopy = board.clone();
+        boardcopy.move(i.getStart(), i.getEnd());
+        value = Math.min(value, BestMove(boardcopy, !mm, alpha, beta, depth+1));
+        if(value<alpha)
+          return value;
+    		beta=Math.min(beta,value);
+      }
+      return value;
+    }
+  }
+
   /**
    * Play a move in the game. 
    * The agent is given a Board Object representing the position of all pieces, 
@@ -38,7 +134,15 @@ public abstract class Agent implements Runnable{
    * current position of the piece to be moved, and the second element is the 
    * position to move that piece to.
    * **/
-  public abstract Position[] playMove(Board board);
+  public abstract Position[] playMove(Board board){
+    Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
+    Colour maxturn = board.getTurn();
+    int alpha = Integer.MIN_VALUE;
+    int beta = Integer.MAX_VALUE;
+    for(Position i : pieces){
+      getlegalmoves(board, i);
+    }
+  }
 
   /**
    * @return the Agent's name, for annotating game description.
