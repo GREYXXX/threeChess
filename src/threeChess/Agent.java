@@ -2,6 +2,8 @@ package threeChess;
 
 import java.util.ArrayList;
 
+// import org.graalvm.compiler.graph.Position;
+
 // import jdk.internal.org.objectweb.asm.tree.analysis.Value;
 // import jdk.nashorn.internal.IntDeque;
 // import sun.jvm.hotspot.debugger.posix.elf.ELFFile;
@@ -81,17 +83,23 @@ public abstract class Agent implements Runnable{
     return li;
   }
 
-
-  public int BestMove(Board board, Boolean mm, int alpha, int beta, int depth){
-    ArrayList<movepair> moves;
-    Colour turn = board.getTurn();
+  public int BestMove(Board board, Boolean mm, int maxturn, int alpha, int beta, int depth){
+    ArrayList<movepair> moves =  new ArrayList<movepair>();
     if(mm) {
-      Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
-      moves = getlegalmoves(board, pieces);
+      Colour turn = board.getTurn();
+      Position[] pieces = board.getPositions(turn).toArray(new Position[0]);
+      moves.addAll(getlegalmoves(board, pieces));
     }
     else{
-      turn = Colour.values()[(turn.ordinal()+1)%3];
+      for(int i = 0; i < 3; i++){
+        if(i!=maxturn){
+          Colour turn1 = Colour.values()[i];
+          Position[] pieces = board.getPositions(turn1).toArray(new Position[0]);
+          moves.addAll(getlegalmoves(board, pieces));
+        }
+      }
     }
+
     if(depth > 3 || board.gameOver()){
       eval(board);
     }
@@ -102,7 +110,7 @@ public abstract class Agent implements Runnable{
       for(movepair i : moves){
         Board boardcopy = board.clone();
         boardcopy.move(i.getStart(), i.getEnd());
-        value = Math.max(value, BestMove(boardcopy, !mm, alpha, beta, depth+1));
+        value = Math.max(value, BestMove(boardcopy, !mm, maxturn, alpha, beta, depth+1));
         if(value>beta)
           return value;
         alpha=Math.max(alpha,value);
@@ -114,7 +122,7 @@ public abstract class Agent implements Runnable{
       for(movepair i : moves){
         Board boardcopy = board.clone();
         boardcopy.move(i.getStart(), i.getEnd());
-        value = Math.min(value, BestMove(boardcopy, !mm, alpha, beta, depth+1));
+        value = Math.min(value, BestMove(boardcopy, !mm, maxturn, alpha, beta, depth+1));
         if(value<alpha)
           return value;
     		beta=Math.min(beta,value);
@@ -134,13 +142,25 @@ public abstract class Agent implements Runnable{
    * current position of the piece to be moved, and the second element is the 
    * position to move that piece to.
    * **/
-  public abstract Position[] playMove(Board board){
+  public Position[] playMove(Board board){
     Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
-    Colour maxturn = board.getTurn();
+    int maxturn = board.getTurn().ordinal();
+    Position[] choice = new Position[2];
     int alpha = Integer.MIN_VALUE;
     int beta = Integer.MAX_VALUE;
-    for(Position i : pieces){
-      getlegalmoves(board, i);
+    ArrayList<movepair> moves =  getlegalmoves(board, pieces);
+    int[] vals = new int[moves.size()];
+    int maxIndex = 0;
+    for(int i = 0; i < moves.size(); i++) {
+      Board boardcopy = board.clone();
+      boardcopy.move(moves.get(i).getStart(), moves.get(i).getEnd());
+      vals[i] = BestMove(boardcopy, false, maxturn, alpha, beta, 1);
+      if(vals[maxIndex]<vals[i]){
+        maxIndex=i;
+      }
+      choice[0] = moves.get(maxIndex).getStart();
+      choice[1] = moves.get(maxIndex).getEnd();
+      return choice;
     }
   }
 
