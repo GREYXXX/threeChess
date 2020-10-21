@@ -1,12 +1,22 @@
 package threeChess.agents;
 
 import threeChess.*;
+import java.io.*;
 // import java.io.Serializable;
 import java.util.*;
 
-public class BRS extends Agent{
-    private static final String name = "BRS";
+public class BRS2 extends Agent{
+	private Scanner myObj;// = new Scanner(System.in);	// PAUSE PROGRAM FOR INPUT
+    private static final String name = "BRS2";
+    private static final PrintStream s = System.out;
+    private ArrayList hist;
+    private ArrayDeque history;
+    private int alpha = Integer.MIN_VALUE;
+    private int beta = Integer.MAX_VALUE;
+//    private int count;
     private static int[][] pp, po, h, bp, bo, rp, ro, qp, qo, kp, ko;
+    private static int p, n, b, r, q, k;
+    private ArrayList removals;
   
     public class movepair{
       Position start, end;
@@ -27,7 +37,18 @@ public class BRS extends Agent{
      * This is the constructor that will be used to create the agent in tournaments.
      * It may be (and probably should be) overidden in the implementing class.
      * **/
-    public BRS(){
+    public BRS2(){
+    	this.myObj = new Scanner(System.in);	// PAUSE PROGRAM FOR INPUT
+      this.hist = new ArrayList<Position[]>();
+      this.removals = new ArrayList<Position>();
+      this.history = new ArrayDeque<Position[]>(4);
+//      this.count = 0;
+      this.p = 100;
+      this.n = 320;
+      this.b = 330;
+      this.r = 500;
+      this.q = 900;
+      this.k = 20000;
       this.pp = new int[][]{
         {  0,   0,   0,   0,   0,   0,   0,   0},
         {  5,  10,  10, -20, -20,  10,  10,   5},
@@ -88,9 +109,9 @@ public class BRS extends Agent{
       };
       
       this.kp = new int[][]{
-        {  0,   0,   0,   0,   0,   0,   0,   0},
-        {  5,  10,  10, -20, -20,  10,  10,   5},
-        {  5,  -5, -10,   0,  0,  -10,  -5,   5},
+    	{  5,  15, -10,   0,  0,  -10,  -5,   5},
+    	{-50, -50, -50, -50, -50, -50, -50, -50},
+    	{-50, -50, -50, -50, -50, -50, -50, -50},
         {  0,   0,   0,  20,  20,   0,   0,   0}
       };
       this.ko = new int[][]{
@@ -108,26 +129,22 @@ public class BRS extends Agent{
   
     /** Get legal moves**/
     public ArrayList<movepair> getlegalmoves(Board board, Position[] piece){
-      // for(Position current : piece){
-      //   System.out.println(board.getPiece(current));
-      // }
-      // // System.out.println(piece.length);
       ArrayList<movepair> li = new ArrayList<movepair>();
-      //board = (Board) boardstart.clone();
-        //li = new ArrayList<movepair>();
       for(Position current : piece){
         try{
           Piece mover = board.getPiece(current);
           PieceType type = mover.getType();
-          // System.out.println(mover.getColour() + type.name());
           Direction[][] steps = type.getSteps();
           Position end = current;
-            // Position end = current;
           if(type == PieceType.PAWN || type == PieceType.KING || type == PieceType.KNIGHT){
             for(int i = 0;i < steps.length;i++){
               end = board.step(mover, steps[i], current, current.getColour()!=end.getColour());
-              if(!board.isLegalMove(current, end)) continue;
-              else li.add(new movepair(current, end)); //System.out.println(end);
+              if(!board.isLegalMove(current, end)) {
+            	  continue;
+              }
+              else {
+            	  li.add(new movepair(current, end));
+              }
             }
           }
           else if(type == PieceType.BISHOP || type == PieceType.QUEEN || type == PieceType.ROOK){
@@ -135,8 +152,13 @@ public class BRS extends Agent{
             for(int i = 0;i < steps.length;i++){
               for(int j = 0;j < reps;j++){
                 end = board.step(mover, steps[i], current, current.getColour()!=end.getColour());
-                if(!board.isLegalMove(current, end)) continue;
-                else li.add(new movepair(current, end)); //System.out.println(end);
+                if(!board.isLegalMove(current, end)) {
+                	continue;
+                }
+                else {
+                	li.add(new movepair(current, end));
+                	current = end;
+                }
               }
             }
           }
@@ -145,61 +167,98 @@ public class BRS extends Agent{
       }
       return li;
     }
+    
+    
     /**Best-Reply-Search */
-    public int BestMove(Board board, Boolean mm, int maxturn, int alpha, int beta, int depth){
-      ArrayList<movepair> moves =  new ArrayList<movepair>();
-      if(mm) {
-        Colour turn = Colour.values()[maxturn];
-        Position[] pieces = board.getPositions(turn).toArray(new Position[0]);
-        moves.addAll(getlegalmoves(board, pieces));
-      }
-      else{
-        for(int i = 0; i < 3; i++){
-          if(i!=maxturn){
-            Colour turn1 = Colour.values()[i];
-            Position[] pieces = board.getPositions(turn1).toArray(new Position[0]);
-            moves.addAll(getlegalmoves(board, pieces));
-           }
-        }
-      }
-  
-      if(depth > 2 || board.gameOver()){
-        return eval(board);
-      }
-  
-      // Colour turn = board.getTurn();
-      if(mm){
-        Board boardcopy = null;
-        int value = Integer.MIN_VALUE;
-        try{
-          for(movepair i : moves){
-            boardcopy = (Board) board.clone();
-            boardcopy.move(i.getStart(), i.getEnd());
-            value = Math.max(value, BestMove(boardcopy, !mm, maxturn, alpha, beta, depth+1));
-            if(value>beta)
-              return value;
-            alpha=Math.max(alpha,value);
-          }
+    public int bm(Board board, int depth, Boolean mm) {
+    	if(board.gameOver()) {
+    		s.println("pontential ko at turn " +board.getMoveCount());
+//    		String userName = myObj.nextLine();		// PAUSE PROGRAM FOR INPUT
+    		return Integer.MAX_VALUE;
+    	}
+    	if (depth > 0) {
+    		int e = eval(board);
+//    		s.println("depth0 eval: "+e);
+    		return e;
+    	}
+
+		
+    	Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
+    	ArrayList<movepair> moves =  getlegalmoves(board, pieces);
+    	
+    	//MAXING
+    	if(mm) {
+    		int value = Integer.MIN_VALUE;
+        	try {
+        		for(movepair m : moves) {
+        			Board boardcopy = (Board)board.clone();
+        			boardcopy.move(m.getStart(), m.getEnd());
+        			value = Math.max(bm(boardcopy, depth + 1, !mm), value);
+//        			if(value>beta)
+//	    				return value;
+//	    			alpha=Math.max(beta,value);
+        		}
+        	}catch(ImpossiblePositionException e){System.out.println("Illeagal Positison");}
+        	catch(CloneNotSupportedException e){System.out.println("Clone Not Support");}
+        	return value;
+    	}
+    	
+    	//MINIMISING
+    	else {
+	    	int value = Integer.MAX_VALUE;
+	    	
+	    	
+	    	
+	    	try {
+	    		//Next opp moves
+//		    	Position[] firstMove = testMove(board);
+//		    	board.move(firstMove[0], firstMove[1]);
+	    		testMove(board);
+		    	
+		    	
+		    	pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
+		    	moves =  getlegalmoves(board, pieces);
+
+	    		for(movepair m : moves) {
+	    			Board boardcopy = (Board)board.clone();
+	    			boardcopy.move(m.getStart(), m.getEnd());
+	    			value = Math.min(bm(boardcopy, depth + 1, !mm), value);
+//	    			if(value<alpha)
+//	    				return value;
+//	    			beta=Math.min(beta,value);
+	    		}
+	    	}catch(ImpossiblePositionException e){System.out.println("Illeagal Positison");}
+	    	catch(CloneNotSupportedException e){System.out.println("Clone Not Support");}
+	    	return value;
+    	}
+        
+    }
+    
+    public void testMove(Board board) {
+    	Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
+    	ArrayList<movepair> moves =  getlegalmoves(board, pieces);
+    	if(pieces.length == 0 || moves.size() == 0)
+    		return;
+    	
+    	
+    	int[] vals = new int[moves.size()];
+        int index = 0;
+        Colour player = board.getTurn();
+        
+        try {
+	        for(int i = 0; i < moves.size(); i++) {
+	          Board boardcopy = (Board) board.clone();
+	          boardcopy.move(moves.get(i).getStart(), moves.get(i).getEnd());
+	          vals[i] = eval(boardcopy, player);
+	          if(vals[i]>vals[index])
+	        	  index = i;
+	        }
+	        
+	        Position[] move = {moves.get(index).getStart(), moves.get(index).getEnd()};
+	        board.move(move[0], move[1]);
+	        
         }catch(ImpossiblePositionException e){System.out.println("Illeagal Positison");}
         catch(CloneNotSupportedException e){System.out.println("Clone Not Support");}
-        return value;
-      }
-      
-      else {
-        int value = Integer.MAX_VALUE;
-        try{
-          for(movepair i : moves){
-            Board boardcopy = (Board)board.clone();
-            boardcopy.move(i.getStart(), i.getEnd());
-            value = Math.min(value, BestMove(boardcopy, !mm, maxturn, alpha, beta, depth+1));
-            if(value<alpha)
-              return value;
-            beta=Math.min(beta,value);
-          }
-        }catch(ImpossiblePositionException e){System.out.println("Illeagal Positison");}
-        catch(CloneNotSupportedException e){System.out.println("Clone Not Support");}
-        return value;
-      }
     }
     /**
      * Play a move in the game. 
@@ -213,62 +272,133 @@ public class BRS extends Agent{
      * position to move that piece to.
      * **/
     public Position[] playMove(Board board){
-      Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
-      int maxturn = board.getTurn().ordinal();
-      // System.out.println("maturn is: " + maxturn + '\n');
-      Position[] choice = new Position[2];
-      int alpha = Integer.MIN_VALUE;
-      int beta = Integer.MAX_VALUE;
-      ArrayList<movepair> moves =  getlegalmoves(board, pieces);
-      // for(int i = 0; i < moves.size();i++){
-      //   System.out.println("ASDADS");
-      //  // System.out.println(""+ moves.get(i).getStart() +" "+ moves.get(i).getEnd());
-      // }
-      int[] vals = new int[moves.size()];
-      int maxIndex = 0;
-      try{
-        for(int i = 0; i < moves.size(); i++) {
-          Board boardcopy = (Board) board.clone();
-          boardcopy.move(moves.get(i).getStart(), moves.get(i).getEnd());
-          vals[i] = BestMove(boardcopy, false, maxturn, alpha, beta, 1);
-          if(vals[maxIndex]<vals[i]){
-              maxIndex=i;
-          }
+        int size = hist.size();
+//        s.println(removals.size());
+        Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
+        
+        //*******************************************************************************
+//        CHECKING FOR LOOPING ERRORS
+        checkLoop();
+        if(removals.size()>0) {
+        	ArrayList temp = new ArrayList<Position>();
+        	for(Position p : pieces) {
+        		if(removals.contains(p)) {
+        			continue;
+        		}
+        		temp.add(p);
+        	}
+        	if (removals.size()>6) {
+        		removals.removeAll(removals);
+        	}
+        	pieces = (Position[])temp.toArray(new Position[0]);
         }
-       }catch(ImpossiblePositionException e){System.out.println("Illeagal Positison");}
-       catch(CloneNotSupportedException e){System.out.println("Clone Not Support");}
-      choice[0] = moves.get(maxIndex).getStart();
-      choice[1] = moves.get(maxIndex).getEnd();
-      // System.out.println(choice[0] + choice[1] + '\n');
-      return choice;
+    	
+    	
+        //*******************************************************************************
+        
+        Position[] choice = new Position[2];
+        this.alpha = Integer.MIN_VALUE;
+        this.beta = Integer.MAX_VALUE;
+        ArrayList<movepair> moves =  getlegalmoves(board, pieces);
+        if(moves.size() == 0){
+        	removals.removeAll(removals);
+        	return playMove(board);
+        }
+        //Make first move
+        int[] vals = new int[moves.size()];
+        int maxIndex = 0;
+        try{
+          for(int i = 0; i < moves.size(); i++) {
+            Board boardcopy = (Board) board.clone();
+            boardcopy.move(moves.get(i).getStart(), moves.get(i).getEnd());
+            if(boardcopy.gameOver()) {
+            	choice[0] = moves.get(i).getStart();
+                choice[1] = moves.get(i).getEnd();
+                return choice;
+            }
+//            if(board.captured(bo).getType()==PieceType.KING) gameOver=true;
+            vals[i] = bm(boardcopy, 0, false);
+            if(vals[maxIndex]<vals[i]){
+                maxIndex=i;
+            }
+          }
+         }catch(ImpossiblePositionException e){System.out.println("Illeagal Positison");}
+         catch(CloneNotSupportedException e){System.out.println("Clone Not Support");}
+        choice[0] = moves.get(maxIndex).getStart();
+        choice[1] = moves.get(maxIndex).getEnd();
+        
+//        s.println(vals[maxIndex]);
+//        Boolean fuckssake =false;
+//        hist.add(choice);
+//        for(int i = 0; i < moves.size(); i++) {
+//        	s.println(moves.get(i).getStart()+" "+moves.get(i).getEnd()+" "+vals[i]);
+//        	if(vals[i] == Integer.MAX_VALUE) {
+//        		fuckssake = true;
+//        	}
+//        }
+//        if(fuckssake) {
+//        	String userName = myObj.nextLine();
+//        }
+//        if(size>10) {
+////        	Scanner myObj = new Scanner(System.in);	// PAUSE PROGRAM FOR INPUT
+//            String userName = myObj.nextLine();		// PAUSE PROGRAM FOR INPUT
+//        }
+        
+        
+        return choice;
+      }
+
+    public Boolean checkLoop() {
+    	int size = hist.size();
+        if(size > 8) {
+        	Position[] previous = (Position[])hist.get(size-1);
+        	for(Position[] p : new ArrayList<Position[]>(hist.subList(size-4, size-1))) {
+//        		s.println("within last 5");
+        		if(p[0] == previous[0] && p[1] == previous[1]) {
+        			for(Position[] q : new ArrayList<Position[]>(hist.subList(size-7, size-4)))
+        				if(q[0] == previous[0] && q[1] == previous[1]) {
+        					removals.add(previous[0]);
+        					return true;
+        				}
+        			
+        		}
+        	}
+        }
+        return false;
     }
-
-
-    static public int eval(Board board) {
+    
+    public int eval(Board board) {
+    	return eval(board, board.getTurn());
+    }
+    public int eval(Board board, Colour player) {
       int total = 0;
-      Colour turn = board.getTurn();
+      
+      //Sum piece value and position
+//      Colour turn = board.getTurn();
       for(Position p: Position.values()){
           Piece piece = board.getPiece(p);
           if(piece!=null) {
             int v = getPosValues(p, piece);
-            if(piece.getColour()==turn) {
-              total+=piece.getValue();
+            if(piece.getColour()==player) {
+              total+=getPieceVals(piece);
               total+=v;
             }
             else{
-              total-=piece.getValue();
+              total-=getPieceVals(piece);
               total-=v;
             }
   //	    	  System.out.format("Piece: %s, Pos: %s, PosVal: %d.%n", piece, p, v);
           }
         }
-      System.out.println(turn + ": " + total);
-      System.out.println();
+//      System.out.println("Eval " + player + ": " + total);
+      for(Piece p : board.getCaptured(player)) {
+    	  total+=getPieceVals(p);
+      }
       return total;
     }
   
     
-    static public int getPosValues(Position pos, Piece piece) {
+    public int getPosValues(Position pos, Piece piece) {
       int r = pos.getRow();
       int c = pos.getColumn();
       switch(piece.getType()) {
@@ -281,6 +411,18 @@ public class BRS extends Agent{
       }
       return 0;
       
+    }
+    
+    public int getPieceVals(Piece piece) {
+    	switch(piece.getType()) {
+        case PAWN: return p;
+        case KNIGHT: return n;
+        case BISHOP: return b;
+        case ROOK: return r;
+        case QUEEN: return q;
+        case KING: return k;
+      }
+      return 0;
     }
   
     /**
@@ -299,5 +441,7 @@ public class BRS extends Agent{
     /**
      * For running threaded games.
      * **/
+//    Scanner myObj = new Scanner(System.in);	// PAUSE PROGRAM FOR INPUT
+//    String userName = myObj.nextLine();		// PAUSE PROGRAM FOR INPUT
 
   }
