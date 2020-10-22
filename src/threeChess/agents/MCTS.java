@@ -2,14 +2,7 @@ package threeChess.agents;
 
 import threeChess.*;
 import java.lang.Math;
-import java.util.concurrent.TimeUnit;
 
-// import javax.lang.model.util.ElementScanner6;
-
-// import threeChess.agents.BRS1;
-
-
-// import java.io.Serializable;
 import java.util.*;
 
 public class MCTS extends Agent {
@@ -18,7 +11,7 @@ public class MCTS extends Agent {
 
 
 /**
- * 
+ * move class with start and end.
  */
     public class movepair {
         Position start, end;
@@ -38,7 +31,8 @@ public class MCTS extends Agent {
     }
 
 /**
- * 
+ * Node class
+ * Each node will contain board state, moves, number of visit and score.
  */
     public class node {
         Board board;
@@ -55,7 +49,10 @@ public class MCTS extends Agent {
             this.reward = new double[] {0.0, 0.0, 0.0};
             nodes = new ArrayList<node>();
         }
-
+/**
+ * update the node for back propagate
+ * @param reward
+ */
         public void update(double[] reward) {
             this.visit += 1;
             for(int i = 0; i < reward.length;i++){
@@ -69,21 +66,6 @@ public class MCTS extends Agent {
 
         public ArrayList<node> getChildrens() {
             return nodes;
-            // ArrayList<node> nodes = new ArrayList<>();
-            // Position[] piece = board.getPositions(board.getTurn()).toArray(new
-            // Position[0]);
-            // ArrayList<movepair> li = getlegalmoves(board, piece);
-            // for (movepair mv : li) {
-            // try {
-            // Board boardcopy = (Board) board.clone();
-            // boardcopy.move(mv.getStart(), mv.getEnd());
-            // nodes.add(new node(boardcopy));
-            // } catch (ImpossiblePositionException e) {
-            // System.out.println("Illeagal Positison");
-            // } catch (CloneNotSupportedException e) {
-            // System.out.println("Clone Not Support");
-            // }
-            // }
         }
 
         public double getVisit() {
@@ -106,23 +88,15 @@ public class MCTS extends Agent {
             return this.end;
         }
 
-        public Board getBoardcopy() {
-            Board boardcopy = null;
-            try{
-                boardcopy = (Board)this.board.clone();
-            }catch(CloneNotSupportedException e){}
-            return boardcopy;
-        }
-
     }
 
     public MCTS() {}
     
 /**
- * 
- * @param board
- * @param piece
- * @return
+ * Return the legale moves of current board state
+ * @param board The current board state.
+ * @param piece All of the pieces for player. 
+ * @return li The legale moves of current board state
  */
     public ArrayList<movepair> getlegalmoves(Board board, Position[] piece) {
         ArrayList<movepair> li = new ArrayList<movepair>();
@@ -155,21 +129,18 @@ public class MCTS extends Agent {
                         }
                     }
                 }
-            } catch (ImpossiblePositionException e) {
-            }
-            // catch(CloneNotSupportedException e) {}
+            } catch (ImpossiblePositionException e) {}
         }
         return li;
     }
 
 /**
- * 
+ * If parent is a leaf node, return; 
+ * Else return the children node with maximum ucb value
  * @param parent
- * @return
+ * @return 
  */
     public node maxUct(node parent) {
-        // double max = Double.MIN_VALUE;
-        // double scalar = 1/Math.sqrt(2.0);
         Colour turn = parent.getBoard().getTurn();
         ArrayList<node> childList = parent.getChildrens();
         int index = 0;
@@ -195,6 +166,11 @@ public class MCTS extends Agent {
         return childList.get(maxindex);
     }
 
+/**
+ * Selection and back propagation
+ * @param currentnode
+ * @return result The score, win is 1, lose is 0.
+ */
     public double[] mcts(node currentnode) {
         double[] result;
         node bestChild = maxUct(currentnode);
@@ -206,34 +182,11 @@ public class MCTS extends Agent {
             result = mcts(bestChild);
         }
         bestChild.update(result);
-        //if (currentnode.getChildrens().size() == 0) {
-            // if(currentnode.getVisit() == 0){
-            //     result = playOut(currentnode);
-            // }
-            // else{
-            //     Expand(currentnode);
-            // }
-        //}
-        // for(node i : currentnode.getChildrens())
-        //     System.out.println("children" + " " + i.getStart());
-        // else{
-            
-        // }
-        // if (bestChild.getVisit() == 0) {
-        //     // Expand(bestChild);
-        //     result = playOut(bestChild);
-        //    // System.out.println("result" + " " + result);
-        // } else {
-        //     result = mcts(bestChild);
-        // }
-        //bestChild.update(result);
-        // System.out.println("bestchild visit" + " " + bestChild.getVisit());
-        // System.out.println("bestchild reward" + " " + bestChild.getReward());
         return result;
     }
 
 /**
- * 
+ * Adding all possible moves for current node as the childrens
  * @param node
  */
     public void Expand(node node) {
@@ -255,89 +208,35 @@ public class MCTS extends Agent {
     }
 
 /**
- * 
+ * Play random moves from current node until the game is over.
  * @param node
- * @return
+ * @return result The array with the score corresponding to the player achieved win
  */
     public double[] playOut(node node) {
         Board board = node.getBoard();
-        Colour turn = board.getTurn();
-
         Board boardcopy = null;
         try{
             boardcopy = (Board) board.clone();
         }catch(CloneNotSupportedException e){}
-            // catch (CloneNotSupportedException e) {}
-            // ArrayList<movepair> moves = getlegalmoves(board, piece);
         int count = 0;
         while (!boardcopy.gameOver()) {
-            //System.out.println(boardcopy.getTurn());
             Position[] piece = boardcopy.getPositions(boardcopy.getTurn()).toArray(new Position[0]);
             ArrayList<movepair> moves = getlegalmoves(boardcopy, piece);
+            //If over than 500 moves but the game isn't over, return a draw.
             if(count > 500 || moves.size()==0) {
                 System.out.println("yes");
                 double[] result = new double[] {1,1,1};
                 return result;
             }
-           // System.out.println("score is" + " " + boardcopy.score(boardcopy.getTurn()));
-            // if(moves.size() == 0) {
-            //     double[] result = new double[] {1,1,1};
-            //     return result;
-            //     //System.out.println("colour is " + " " + boardcopy.getTurn() + "size is" + " "+ moves.size()); 
-            // }
-
-            // BRS1 brs = new BRS1();
-            // Position start, end;
-            // Position[] choice = brs.playMove(boardcopy);
-            // start = choice[0];
-            // end = choice[1];
-            // System.out.println("brs move is" + " " +start + " " + end);
-
-            // int[] vals = new int[moves.size()];
-            // int maxindex = 0;
-            // for(int i=0;i < moves.size();i++){
-            //     //Board boardcopy1 = null;
-            //     try{
-            //         Board boardcopy1 = (Board) boardcopy.clone();
-            //         boardcopy1.move(moves.get(i).getStart(), moves.get(i).getEnd());
-            //         vals[i] = brs.eval(boardcopy1);
-            //         //System.out.println(vals[i]);
-            //         if(vals[maxindex]<vals[i]){
-            //             maxindex = i;
-            //         }
-            //     }catch (CloneNotSupportedException e){System.out.println("Clone Not Support");}
-            //     catch(ImpossiblePositionException e) {System.out.println("Impossible Position");}
-            // }
-
-            //System.out.println("maxindex is" + " " + maxindex + "and move is : " + " " + moves.get(maxindex).getStart() + " " + moves.get(maxindex).getEnd());
-            // Position[] choice = brs.playMove(boardcopy);
-            //{System.out.println("yes"); System.out.println(board.getWinner());}
-           
-           // System.out.println("colour is " + " " + boardcopy.getTurn() + "size is" + " "+ moves.size()); 
-            
-            // System.out.println(board.getWinner());
-            
-            // Position start = moves.get(random.nextInt(moves.size())).getStart();
-            // Position end = moves.get(random.nextInt(moves.size())).getEnd();
-
             movepair mv = moves.get(random.nextInt(moves.size()));
             Position start = mv.getStart();
             Position end = mv.getEnd();
-
-            // Position start = moves.get(maxindex).getStart();
-            // Position end = moves.get(maxindex).getEnd();
-            
-            // System.out.println("start is" + " " + start + "end is" + " " + end);
-            //System.out.println("move size is" + " " + moves.size());
             try {
                 boardcopy.move(start, end);
             } catch (ImpossiblePositionException e) {}
-            //System.out.println(boardcopy.getCaptured(Colour.BLUE));
             count++;
         }
         Colour winner = boardcopy.getWinner();
-        // System.out.println("count is:" + " " + count);
-        System.out.println("winner is:" + " " + winner);
         double[] result;
         if(winner == Colour.BLUE) {result = new double[] {1, 0, 0};}
         else if(winner == Colour.GREEN) {result = new double[] {0, 1, 0};}
@@ -385,7 +284,7 @@ public class MCTS extends Agent {
     } 
 
 /**
- * Return the node with highest visits.
+ * Return the node with highest number of visits.
  * @param node
  * @param index
  * @return node
@@ -436,25 +335,17 @@ public class MCTS extends Agent {
      * position to move that piece to.
      * **/
     public Position[] playMove(Board board){
-        Colour maxturn = board.getTurn();
         int n = 0;
-        // System.out.println(maxturn);
-        long seconds = TimeUnit.MILLISECONDS.toSeconds(board.getTimeLeft(maxturn));
-        //System.out.println(seconds);
         node root = new node(board, null, null);
-        while(n < 1000){
+        while(n < 80){
             try{
-                //System.out.println(1);
                 double[] result = mcts(root);
-                // System.out.println(result);
                 root.update(result);
                 n++;
             }
             catch (IndexOutOfBoundsException e) {}
             catch (NullPointerException e) {}
         }
-        System.out.println("root visit is" + " " + root.getVisit());
-        //System.out.println("reward is" + " " + root.getReward());
         return chooseFinalMove(root);
     }
 
