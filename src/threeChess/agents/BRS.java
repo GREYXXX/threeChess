@@ -1,23 +1,19 @@
 package threeChess.agents;
 
 import threeChess.*;
-import java.io.*;
-// import java.io.Serializable;
 import java.util.*;
 
-public class BRS2 extends Agent{
-	private Scanner myObj;// = new Scanner(System.in);	// PAUSE PROGRAM FOR INPUT
-    private static final String name = "BRS2";
-    private static final PrintStream s = System.out;
+public class BRS extends Agent{
+    private static final String name = "BRS";
     private ArrayList hist;
-    private ArrayDeque history;
-    private int alpha = Integer.MIN_VALUE;
-    private int beta = Integer.MAX_VALUE;
-//    private int count;
     private static int[][] pp, po, h, bp, bo, rp, ro, qp, qo, kp, ko;
     private static int p, n, b, r, q, k;
     private ArrayList removals;
-  
+
+/**
+ * move class with start and end.
+ */
+
     public class movepair{
       Position start, end;
       movepair(Position start, Position end){
@@ -37,12 +33,9 @@ public class BRS2 extends Agent{
      * This is the constructor that will be used to create the agent in tournaments.
      * It may be (and probably should be) overidden in the implementing class.
      * **/
-    public BRS2(){
-    	this.myObj = new Scanner(System.in);	// PAUSE PROGRAM FOR INPUT
-      this.hist = new ArrayList<Position[]>();
+    public BRS(){
+    	this.hist = new ArrayList<Position[]>();
       this.removals = new ArrayList<Position>();
-      this.history = new ArrayDeque<Position[]>(4);
-//      this.count = 0;
       this.p = 100;
       this.n = 320;
       this.b = 330;
@@ -127,7 +120,12 @@ public class BRS2 extends Agent{
         return true;
     }
   
-    /** Get legal moves**/
+    /**
+     * Get legal moves for given pieces
+     * @param board The representation of the game state.
+     * @param piece An array of piece positions
+     * @return a list of movepairs representing start and end positions of legal moves
+     * **/
     public ArrayList<movepair> getlegalmoves(Board board, Position[] piece){
       ArrayList<movepair> li = new ArrayList<movepair>();
       for(Position current : piece){
@@ -163,22 +161,24 @@ public class BRS2 extends Agent{
             }
           }
         }catch(ImpossiblePositionException e) {}
-        // catch(CloneNotSupportedException e) {}
       }
       return li;
     }
     
-    
+    /**
+     * BRS+ method for calculating next move
+     * @param board The representation of the game state.
+     * @param depth The starting depth of the tree search
+     * @param mm Whether the function is maximising or minimising the nodes
+     * @return an integer value for the node evaluation
+     * **/
     /**Best-Reply-Search */
     public int bm(Board board, int depth, Boolean mm) {
     	if(board.gameOver()) {
-    		s.println("pontential ko at turn " +board.getMoveCount());
-//    		String userName = myObj.nextLine();		// PAUSE PROGRAM FOR INPUT
     		return Integer.MAX_VALUE;
     	}
     	if (depth > 0) {
     		int e = eval(board);
-//    		s.println("depth0 eval: "+e);
     		return e;
     	}
 
@@ -194,9 +194,6 @@ public class BRS2 extends Agent{
         			Board boardcopy = (Board)board.clone();
         			boardcopy.move(m.getStart(), m.getEnd());
         			value = Math.max(bm(boardcopy, depth + 1, !mm), value);
-//        			if(value>beta)
-//	    				return value;
-//	    			alpha=Math.max(beta,value);
         		}
         	}catch(ImpossiblePositionException e){System.out.println("Illeagal Positison");}
         	catch(CloneNotSupportedException e){System.out.println("Clone Not Support");}
@@ -206,13 +203,9 @@ public class BRS2 extends Agent{
     	//MINIMISING
     	else {
 	    	int value = Integer.MAX_VALUE;
-	    	
-	    	
-	    	
+	    	   	
 	    	try {
 	    		//Next opp moves
-//		    	Position[] firstMove = testMove(board);
-//		    	board.move(firstMove[0], firstMove[1]);
 	    		testMove(board);
 		    	
 		    	
@@ -223,9 +216,6 @@ public class BRS2 extends Agent{
 	    			Board boardcopy = (Board)board.clone();
 	    			boardcopy.move(m.getStart(), m.getEnd());
 	    			value = Math.min(bm(boardcopy, depth + 1, !mm), value);
-//	    			if(value<alpha)
-//	    				return value;
-//	    			beta=Math.min(beta,value);
 	    		}
 	    	}catch(ImpossiblePositionException e){System.out.println("Illeagal Positison");}
 	    	catch(CloneNotSupportedException e){System.out.println("Clone Not Support");}
@@ -234,6 +224,10 @@ public class BRS2 extends Agent{
         
     }
     
+    /**
+     * Make a move for the intermediary player
+     * @param board The representation of the game state
+     * **/
     public void testMove(Board board) {
     	Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
     	ArrayList<movepair> moves =  getlegalmoves(board, pieces);
@@ -273,7 +267,6 @@ public class BRS2 extends Agent{
      * **/
     public Position[] playMove(Board board){
         int size = hist.size();
-//        s.println(removals.size());
         Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
         
         //*******************************************************************************
@@ -297,8 +290,6 @@ public class BRS2 extends Agent{
         //*******************************************************************************
         
         Position[] choice = new Position[2];
-        this.alpha = Integer.MIN_VALUE;
-        this.beta = Integer.MAX_VALUE;
         ArrayList<movepair> moves =  getlegalmoves(board, pieces);
         if(moves.size() == 0){
         	removals.removeAll(removals);
@@ -316,7 +307,7 @@ public class BRS2 extends Agent{
                 choice[1] = moves.get(i).getEnd();
                 return choice;
             }
-//            if(board.captured(bo).getType()==PieceType.KING) gameOver=true;
+            
             vals[i] = bm(boardcopy, 0, false);
             if(vals[maxIndex]<vals[i]){
                 maxIndex=i;
@@ -327,33 +318,19 @@ public class BRS2 extends Agent{
         choice[0] = moves.get(maxIndex).getStart();
         choice[1] = moves.get(maxIndex).getEnd();
         
-//        s.println(vals[maxIndex]);
-//        Boolean fuckssake =false;
-//        hist.add(choice);
-//        for(int i = 0; i < moves.size(); i++) {
-//        	s.println(moves.get(i).getStart()+" "+moves.get(i).getEnd()+" "+vals[i]);
-//        	if(vals[i] == Integer.MAX_VALUE) {
-//        		fuckssake = true;
-//        	}
-//        }
-//        if(fuckssake) {
-//        	String userName = myObj.nextLine();
-//        }
-//        if(size>10) {
-////        	Scanner myObj = new Scanner(System.in);	// PAUSE PROGRAM FOR INPUT
-//            String userName = myObj.nextLine();		// PAUSE PROGRAM FOR INPUT
-//        }
-        
-        
+
         return choice;
       }
-
+    
+    /**
+     * Check whether moves have been repeating
+     * @return whether or not moves have been repeating
+     * **/
     public Boolean checkLoop() {
     	int size = hist.size();
         if(size > 8) {
         	Position[] previous = (Position[])hist.get(size-1);
         	for(Position[] p : new ArrayList<Position[]>(hist.subList(size-4, size-1))) {
-//        		s.println("within last 5");
         		if(p[0] == previous[0] && p[1] == previous[1]) {
         			for(Position[] q : new ArrayList<Position[]>(hist.subList(size-7, size-4)))
         				if(q[0] == previous[0] && q[1] == previous[1]) {
@@ -366,15 +343,22 @@ public class BRS2 extends Agent{
         }
         return false;
     }
-    
+    /**
+     * Overloads eval function
+     * @param board The representation of the game state.
+     * @return evaluation of board state
+     * **/
     public int eval(Board board) {
     	return eval(board, board.getTurn());
     }
+    /**
+     * Evaluates board state
+     * @param board The representation of the game state.
+     * @return evaluation of board state
+     * **/
     public int eval(Board board, Colour player) {
       int total = 0;
-      
-      //Sum piece value and position
-//      Colour turn = board.getTurn();
+
       for(Position p: Position.values()){
           Piece piece = board.getPiece(p);
           if(piece!=null) {
@@ -387,17 +371,20 @@ public class BRS2 extends Agent{
               total-=getPieceVals(piece);
               total-=v;
             }
-  //	    	  System.out.format("Piece: %s, Pos: %s, PosVal: %d.%n", piece, p, v);
           }
         }
-//      System.out.println("Eval " + player + ": " + total);
       for(Piece p : board.getCaptured(player)) {
     	  total+=getPieceVals(p);
       }
       return total;
     }
   
-    
+    /**
+     * Returns positional values for a piece
+     * @param pos A board position
+     * @param piece Type Piece
+     * @return The positional value for the piece give
+     * **/
     public int getPosValues(Position pos, Piece piece) {
       int r = pos.getRow();
       int c = pos.getColumn();
@@ -413,6 +400,11 @@ public class BRS2 extends Agent{
       
     }
     
+    /**
+     * Returns piece values for a piece
+     * @param piece Type piece
+     * @return integer value for piece
+     * **/
     public int getPieceVals(Piece piece) {
     	switch(piece.getType()) {
         case PAWN: return p;
@@ -437,11 +429,5 @@ public class BRS2 extends Agent{
      * @param finalBoard the end position of the board
      * **/
     public  void finalBoard(Board finalBoard) {}
-  
-    /**
-     * For running threaded games.
-     * **/
-//    Scanner myObj = new Scanner(System.in);	// PAUSE PROGRAM FOR INPUT
-//    String userName = myObj.nextLine();		// PAUSE PROGRAM FOR INPUT
 
   }
