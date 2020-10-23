@@ -138,7 +138,7 @@ public class MCTS extends Agent {
  * If parent is a leaf node, return; 
  * Else return the children node with maximum ucb value
  * @param parent
- * @return 
+ * @return best child node
  */
     public node maxUct(node parent) {
         Colour turn = parent.getBoard().getTurn();
@@ -198,7 +198,6 @@ public class MCTS extends Agent {
                 Board boardcopy = (Board) board.clone();
                 boardcopy.move(mv.getStart(), mv.getEnd());
                 node.setChildren(boardcopy, mv.getStart(), mv.getEnd());
-                // nodes.add(new node(boardcopy));
             } catch (ImpossiblePositionException e) {
                 System.out.println("Illeagal Positison");
             } catch (CloneNotSupportedException e) {
@@ -224,7 +223,6 @@ public class MCTS extends Agent {
             ArrayList<movepair> moves = getlegalmoves(boardcopy, piece);
             //If over than 500 moves but the game isn't over, return a draw.
             if(count > 500 || moves.size()==0) {
-                System.out.println("yes");
                 double[] result = new double[] {1,1,1};
                 return result;
             }
@@ -247,7 +245,7 @@ public class MCTS extends Agent {
  * Return the final moves with highest win rate.
  * Can apply robustChild() and maxChild() policy.
  * @param root
- * @return 
+ * @return  choice The final moves
  */
     public Position[] chooseFinalMove(node root){
         Colour turn = root.getBoard().getTurn();
@@ -257,7 +255,6 @@ public class MCTS extends Agent {
         else index = 2;
         node bestChild = bestChild(root, index);
         Position[] choice = new Position[2];
-        System.out.println("bestchild is :" + bestChild.getReward()[index]);
         choice[0] = bestChild.getStart();
         choice[1] = bestChild.getEnd();
         return choice;
